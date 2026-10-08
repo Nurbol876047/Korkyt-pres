@@ -1,0 +1,1192 @@
+<meta charset="UTF-8">
+<title>Сыбайлас жемқорлыққа жауапкершілік</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Golos+Text:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ink:#10172a;
+  --ink-2:#182238;
+  --ink-3:#202c47;
+  --ink-4:#293656;
+  --line:rgba(243,234,217,0.14);
+  --line-strong:rgba(243,234,217,0.26);
+  --paper:#f4ecdd;
+  --paper-dim:rgba(244,236,221,0.72);
+  --paper-faint:rgba(244,236,221,0.48);
+  --disc:#1D4E89;
+  --disc-soft:rgba(29,78,137,0.14);
+  --crim:#B3261E;
+  --crim-soft:rgba(179,38,30,0.14);
+  --admin:#A35C00;
+  --admin-soft:rgba(163,92,0,0.14);
+  --game:#1E7A49;
+  --game-soft:rgba(30,122,73,0.14);
+  --violet:#5B3A99;
+  --violet-soft:rgba(91,58,153,0.14);
+  --neutral:#A35C00;
+  --neutral-soft:rgba(163,92,0,0.14);
+  --shadow:0 24px 70px rgba(0,0,0,0.4);
+  --radius:18px;
+}
+:root[data-theme="light"]{
+  --ink:#F3EEE3;
+  --ink-2:#FFFFFF;
+  --ink-3:#EFE7D4;
+  --ink-4:#D6CDB8;
+  --line:#D6CDB8;
+  --line-strong:#C2B595;
+  --paper:#0B1220;
+  --paper-dim:#1F2937;
+  --paper-faint:#374151;
+  --shadow:0 10px 30px rgba(15,23,42,0.12);
+}
+*{box-sizing:border-box;}
+html,body{
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  background:var(--ink);
+  color:var(--paper);
+  transition:background-color .5s ease, color .5s ease;
+}
+body{
+  font-family:'Golos Text',system-ui,-apple-system,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+h1,h2,h3{
+  font-family:'Spectral',Georgia,'Times New Roman',serif;
+  font-weight:800;
+  color:var(--paper);
+  margin:0;
+  text-wrap:balance;
+}
+p{margin:0;}
+button{font-family:inherit;}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+::selection{background:var(--admin);color:var(--ink);}
+:focus-visible{outline:2px solid var(--admin);outline-offset:3px;border-radius:4px;}
+
+#bg-host{position:fixed;inset:0;z-index:0;background:var(--ink);}
+#bg-host canvas{display:block;width:100%;height:100%;}
+#vignette{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 42%, rgba(16,23,42,0) 0%, rgba(16,23,42,0.22) 62%, rgba(16,23,42,0.62) 100%),
+    linear-gradient(to bottom, rgba(16,23,42,0.32) 0%, rgba(16,23,42,0) 16%, rgba(16,23,42,0) 76%, rgba(16,23,42,0.42) 100%);
+  transition:opacity .5s ease;
+}
+
+#app{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;}
+
+.topbar{
+  position:relative;z-index:3;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 28px 0;
+  gap:16px;
+}
+.progress{position:absolute;top:0;left:0;right:0;height:3px;background:rgba(236,228,211,0.08);}
+.progress-fill{height:100%;width:0%;background:var(--accent,var(--admin));transition:width .4s ease, background-color .5s ease;}
+
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--paper-dim);
+  background:var(--ink-2);border:1px solid var(--line);
+  padding:7px 13px;border-radius:999px;
+  white-space:nowrap;
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent,var(--admin));flex:none;transition:background-color .5s ease;}
+
+.legend{display:flex;gap:6px;align-items:center;}
+.legend .lg{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:999px;
+  border:1px solid var(--line);background:var(--ink-2);
+  font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--paper-faint);
+  transition:all .3s ease;opacity:.55;
+}
+.legend .lg b{width:6px;height:6px;border-radius:50%;flex:none;}
+.legend .lg.on{opacity:1;color:var(--paper);border-color:var(--line-strong);}
+
+.counter{font-size:.78rem;color:var(--paper-dim);letter-spacing:.04em;flex:none;}
+
+main#stage{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:18px 28px;min-height:0;position:relative;
+}
+.card{
+  position:relative;
+  width:100%;max-width:1080px;max-height:100%;
+  overflow-y:auto;
+  padding:clamp(28px,4vw,56px) clamp(28px,5vw,64px);
+  opacity:0;transform:translateY(10px);
+  transition:opacity .32s ease, transform .32s ease;
+  scrollbar-width:thin;scrollbar-color:var(--ink-4) transparent;
+  text-shadow:0 2px 18px rgba(6,10,18,0.8), 0 1px 4px rgba(6,10,18,0.85);
+}
+.card::before{
+  content:'';
+  position:absolute;
+  inset:clamp(-36px,-5vw,-14px) clamp(-48px,-7vw,-18px);
+  background:radial-gradient(ellipse 62% 66% at 50% 40%, rgba(8,12,20,0.5) 0%, rgba(8,12,20,0.24) 50%, rgba(8,12,20,0) 78%);
+  z-index:-1;pointer-events:none;
+}
+.card.in{opacity:1;transform:translateY(0);}
+.card::-webkit-scrollbar{width:8px;}
+.card::-webkit-scrollbar-thumb{background:var(--ink-4);border-radius:8px;}
+
+.card-title::before{
+  background:
+    radial-gradient(ellipse 50% 60% at 78% 45%, rgba(232,189,108,0.16) 0%, rgba(232,189,108,0) 70%),
+    radial-gradient(ellipse 62% 66% at 50% 40%, rgba(8,12,20,0.5) 0%, rgba(8,12,20,0.24) 50%, rgba(8,12,20,0) 78%);
+}
+.hero-illustration{
+  position:absolute;right:clamp(-40px,-3vw,10px);top:50%;transform:translateY(-50%);
+  width:clamp(220px,26vw,380px);height:clamp(220px,26vw,380px);
+  color:var(--admin);opacity:.14;pointer-events:none;z-index:-1;
+}
+.hero-illustration svg{width:100%;height:100%;}
+@media (max-width:860px){.hero-illustration{display:none;}}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:'JetBrains Mono',monospace;font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent,var(--admin));margin-bottom:16px;transition:color .5s ease;
+}
+.eyebrow::before{content:'';width:18px;height:1px;background:var(--accent,var(--admin));transition:background-color .5s ease;}
+
+h2.slide-title{font-size:clamp(1.8rem,3.1vw,2.6rem);line-height:1.2;letter-spacing:-.01em;}
+h1.hero-title{font-size:clamp(2.5rem,5.4vw,4.3rem);line-height:1.1;letter-spacing:-.015em;}
+.lede{font-size:1.4rem;line-height:1.6;color:var(--paper-dim);max-width:64ch;margin-top:16px;}
+.body-text{font-size:1.4rem;line-height:1.6;color:var(--paper-dim);max-width:68ch;}
+.body-text strong{color:var(--paper);font-weight:600;}
+
+.stack{display:flex;flex-direction:column;gap:22px;margin-top:22px;}
+.row{display:flex;gap:18px;flex-wrap:wrap;}
+
+.kicker-roadmap{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;}
+.rm-chip{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;border-radius:12px;border:1px solid var(--line);
+  background:var(--ink-2);
+}
+.rm-chip .num{font-family:'JetBrains Mono',monospace;font-size:.92rem;font-weight:700;}
+.rm-chip .lbl{font-size:1rem;font-weight:700;color:var(--paper);}
+.rm-chip.disc{border-color:var(--disc);} .rm-chip.disc .num{color:var(--disc);}
+.rm-chip.crim{border-color:var(--crim);} .rm-chip.crim .num{color:var(--crim);}
+.rm-chip.admin{border-color:var(--admin);} .rm-chip.admin .num{color:var(--admin);}
+
+.ic{width:28px;height:28px;color:var(--accent,var(--admin));opacity:.9;flex:none;}
+.ic svg{width:100%;height:100%;}
+
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:24px;}
+.gc{
+  border:1px solid var(--line);background:var(--ink-2);border-radius:14px;padding:20px 20px;
+  border-left:3px solid var(--accent,var(--admin));
+}
+.gc .ic{margin-bottom:12px;}
+.gc h4{font-family:'Golos Text';font-size:1.06rem;font-weight:700;margin:0 0 7px;color:var(--paper);}
+.gc p{font-size:.98rem;line-height:1.58;color:var(--paper-dim);}
+
+.codex{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:24px;}
+.codex-item{
+  border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--ink-2);
+  transition:transform .2s ease,border-color .2s ease;
+}
+.codex-item:hover{transform:translateY(-2px);border-color:var(--line-strong);}
+.codex-item .ic{width:20px;height:20px;opacity:.55;margin-bottom:8px;}
+.codex-item .n{font-family:'JetBrains Mono',monospace;font-size:1.44rem;font-weight:700;color:var(--accent,var(--admin));}
+.codex-item .t{font-size:.94rem;color:var(--paper-dim);margin-top:4px;line-height:1.42;}
+
+.ladder{display:flex;flex-direction:column;gap:0;margin-top:24px;position:relative;padding-left:26px;}
+.ladder::before{content:'';position:absolute;left:7px;top:10px;bottom:10px;width:1px;background:var(--line-strong);}
+.rung{display:flex;align-items:baseline;gap:14px;padding:11px 0;position:relative;}
+.rung::before{
+  content:'';position:absolute;left:-26px;top:50%;transform:translateY(-50%);
+  width:13px;height:13px;border-radius:50%;background:var(--accent,var(--admin));border:2px solid var(--accent,var(--admin));
+}
+.rung.final::before{width:15px;height:15px;left:-27px;box-shadow:0 0 0 3px var(--accent-soft,var(--admin-soft));}
+.rung .idx{font-family:'JetBrains Mono',monospace;font-size:.86rem;font-weight:700;color:var(--paper-faint);width:20px;flex:none;}
+.rung .lbl{font-size:1.06rem;font-weight:600;color:var(--paper-dim);}
+.rung.final .lbl{color:var(--paper);font-weight:800;}
+.rung .tag{margin-left:auto;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent,var(--admin));opacity:0;}
+.rung.final .tag{opacity:1;}
+
+.example{
+  margin-top:22px;border-radius:14px;border:1px solid var(--line);
+  background:linear-gradient(135deg, var(--accent-soft,var(--admin-soft)) 0%, transparent 60%), var(--ink-2);
+  border-left:3px solid var(--accent,var(--admin));
+  padding:18px 22px;
+}
+.example .tag{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent,var(--admin));}
+.example .tag svg{width:16px;height:16px;flex:none;}
+.example p{margin-top:10px;font-size:1.06rem;line-height:1.62;color:var(--paper);font-style:italic;}
+.example .outcome{margin-top:12px;font-style:normal;font-size:.96rem;color:var(--paper-dim);}
+.example .outcome strong{color:var(--accent,var(--admin));font-style:normal;}
+
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;}
+@media (max-width:720px){.twocol{grid-template-columns:1fr;}}
+
+table.cmp{width:100%;border-collapse:collapse;margin-top:22px;font-size:1.02rem;border:1px solid var(--line);}
+table.cmp th,table.cmp td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);}
+table.cmp th{color:var(--paper-faint);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;}
+table.cmp td{color:var(--paper-dim);}
+table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
+.tbl-wrap{overflow-x:auto;}
+
+.flowsteps{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;align-items:stretch;}
+.fstep{flex:1;min-width:170px;border:1px solid var(--line);background:var(--ink-2);border-radius:12px;padding:18px;position:relative;}
+.fstep .n{font-family:'JetBrains Mono',monospace;color:var(--accent,var(--admin));font-size:.86rem;}
+.fstep p{margin-top:7px;font-size:.96rem;color:var(--paper-dim);line-height:1.52;}
+.farrow{display:flex;align-items:center;color:var(--paper-faint);font-size:1.2rem;}
+@media (max-width:720px){.farrow{display:none;}}
+
+.hotline{
+  margin-top:24px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+  border:1px solid var(--line-strong);border-radius:16px;padding:22px 28px;background:var(--ink-2);
+}
+.hotline .ic{width:40px;height:40px;color:var(--admin);opacity:1;}
+.hotline .num{font-family:'JetBrains Mono',monospace;font-size:2.7rem;font-weight:700;color:var(--admin);line-height:1;}
+.hotline .txt{font-size:1rem;color:var(--paper-dim);max-width:42ch;}
+
+.scorecard{display:grid;grid-template-columns:1fr;gap:12px;margin-top:22px;}
+.sc-row{display:grid;grid-template-columns:130px 1fr;gap:18px;border:1px solid var(--line);border-radius:12px;padding:16px 20px;background:var(--ink-2);align-items:center;}
+.sc-row .k{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;}
+.sc-row.disc{border-left:3px solid var(--disc);} .sc-row.disc .k{color:var(--disc);}
+.sc-row.admin{border-left:3px solid var(--admin);} .sc-row.admin .k{color:var(--admin);}
+.sc-row.crim{border-left:3px solid var(--crim);} .sc-row.crim .k{color:var(--crim);}
+.sc-row .v{font-size:.96rem;color:var(--paper-dim);line-height:1.5;}
+.sc-row .v b{color:var(--paper);}
+
+.card-board{
+  max-width:1360px;width:96%;height:100%;
+  display:flex;flex-direction:column;
+  padding:clamp(18px,2.2vw,32px) clamp(18px,2.6vw,38px);
+}
+.board-wrap{display:flex;flex-direction:column;gap:16px;height:100%;min-height:0;}
+.board-teams{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:none;}
+.team-panel{
+  border:1px solid var(--line-strong);border-top:3px solid var(--tc,var(--admin));
+  background:var(--ink-2);border-radius:14px;padding:12px 18px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.tp-name{font-size:.84rem;color:var(--paper-dim);font-weight:600;}
+.tp-score{font-size:clamp(1.3rem,2.4vw,1.9rem);font-weight:700;color:var(--tc,var(--admin));min-width:3ch;text-align:center;}
+.tp-ctrl{display:flex;gap:6px;}
+.tp-btn{
+  font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;
+  border:1px solid var(--line-strong);background:var(--ink-3);color:var(--paper-dim);
+  border-radius:8px;padding:6px 9px;cursor:pointer;transition:all .15s ease;
+}
+.tp-btn:hover{border-color:var(--tc,var(--admin));color:var(--tc,var(--admin));}
+
+.board-grid{
+  flex:1;min-height:0;display:grid;
+  grid-template-columns:repeat(5,1fr);
+  grid-template-rows:auto repeat(5,1fr);
+  gap:8px;
+}
+.board-cat{
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:clamp(.82rem,1.3vw,1.05rem);font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+  color:var(--ac,var(--admin));background:var(--ink-2);border:1px solid var(--line-strong);
+  border-radius:10px;padding:12px 6px;line-height:1.28;
+  min-width:0;overflow-wrap:break-word;word-break:break-word;
+}
+.board-cell{
+  font-family:'JetBrains Mono',monospace;font-weight:700;
+  font-size:clamp(1.6rem,3.2vw,2.5rem);color:var(--ac,var(--admin));
+  background:var(--ink-2);border:1px solid var(--line);border-radius:12px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s ease;min-height:0;min-width:0;
+}
+.board-cell:hover{border-color:var(--ac,var(--admin));background:var(--ink-3);transform:translateY(-2px);}
+.board-cell.answered{color:var(--paper-faint);opacity:.26;cursor:default;border-color:var(--line);background:transparent;}
+.board-cell.answered:hover{transform:none;border-color:var(--line);}
+
+.board-overlay{
+  position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+  background:rgba(8,12,19,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity .25s ease;padding:32px;
+}
+.board-overlay.open{opacity:1;pointer-events:auto;}
+.bo-card{
+  width:100%;max-width:820px;background:var(--ink-2);border:1px solid var(--line-strong);
+  border-radius:20px;box-shadow:var(--shadow);padding:clamp(26px,4vw,52px);text-align:center;
+}
+.bo-tag{font-family:'JetBrains Mono',monospace;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ac,var(--admin));margin-bottom:18px;}
+.bo-q{font-family:'Spectral';font-weight:600;font-size:clamp(1.3rem,3vw,2rem);line-height:1.38;text-wrap:balance;}
+.bo-a{
+  margin-top:0;padding-top:0;border-top:1px solid transparent;
+  font-size:1.08rem;color:var(--game);font-weight:600;line-height:1.55;
+  max-height:0;opacity:0;overflow:hidden;transition:all .3s ease;
+}
+.bo-a.show{margin-top:22px;padding-top:22px;border-top-color:var(--line);max-height:300px;opacity:1;}
+.bo-actions{display:flex;gap:12px;justify-content:center;margin-top:28px;}
+@media (max-width:760px){
+  .board-teams{grid-template-columns:1fr;gap:8px;}
+  .board-grid{gap:5px;}
+  .board-cat{font-size:.6rem;letter-spacing:0;padding:8px 3px;}
+  .board-cell{font-size:1.3rem;border-radius:9px;}
+}
+
+.gameintro-steps{display:flex;flex-direction:column;gap:12px;margin-top:24px;}
+.gi{display:flex;gap:16px;align-items:flex-start;}
+.gi .n{font-family:'JetBrains Mono',monospace;color:var(--game);font-weight:700;flex:none;width:24px;font-size:1.05rem;}
+.gi p{font-size:1.04rem;color:var(--paper-dim);line-height:1.58;}
+
+.final-cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;}
+.btn{
+  font-family:'Golos Text';font-weight:600;font-size:.96rem;
+  border:1px solid var(--line-strong);background:var(--ink-3);color:var(--paper);
+  padding:13px 22px;border-radius:999px;cursor:pointer;transition:all .18s ease;
+}
+.btn:hover{border-color:var(--admin);color:var(--admin);}
+.btn.primary{background:var(--admin);color:#FFFFFF;border-color:var(--admin);}
+.btn.primary:hover{opacity:.88;color:var(--ink);}
+
+.navbar{
+  position:relative;z-index:3;display:flex;align-items:center;justify-content:center;gap:18px;
+  padding:16px 28px 22px;
+}
+.nav-btn{
+  width:42px;height:42px;border-radius:50%;border:1px solid var(--line-strong);background:var(--ink-2);
+  color:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  transition:all .18s ease;
+}
+.nav-btn:hover{border-color:var(--accent,var(--admin));color:var(--accent,var(--admin));}
+.nav-btn:disabled{opacity:.3;cursor:default;}
+.nav-btn:disabled:hover{border-color:var(--line-strong);color:var(--paper);}
+.nav-btn svg{width:18px;height:18px;}
+.nav-hint{font-size:.72rem;color:var(--paper-faint);letter-spacing:.04em;white-space:nowrap;}
+@media (max-width:560px){.nav-hint{display:none;}}
+
+#scoreboard{
+  position:fixed;top:20px;right:28px;z-index:4;
+  background:rgba(17,26,40,0.88);backdrop-filter:blur(10px);
+  border:1px solid var(--line-strong);border-radius:14px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:8px;min-width:168px;
+  opacity:0;transform:translateY(-8px);pointer-events:none;
+  transition:opacity .3s ease, transform .3s ease;
+}
+#scoreboard.visible{opacity:1;transform:translateY(0);pointer-events:auto;}
+#scoreboard .sb-title{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-faint);margin-bottom:2px;}
+.sb-team{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.sb-team .name{font-size:.82rem;color:var(--paper-dim);}
+.sb-team .ctrl{display:flex;align-items:center;gap:6px;}
+.sb-team .score{font-family:'JetBrains Mono',monospace;font-weight:700;min-width:22px;text-align:center;}
+.sb-btn{
+  width:20px;height:20px;border-radius:50%;border:1px solid var(--line-strong);background:var(--ink-3);
+  color:var(--paper-dim);font-size:.75rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.sb-btn:hover{border-color:var(--game);color:var(--game);}
+
+@media (max-width:680px){
+  .topbar{padding:14px 16px 0;}
+  .legend .lg span.txt{display:none;}
+  main#stage{padding:10px 14px;}
+  .card{padding:24px 20px;}
+  #scoreboard{right:16px;top:14px;min-width:150px;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important;}
+}
+
+/* ---------- light theme: high-contrast ivory + white cards ---------- */
+[data-theme="light"] #vignette{opacity:0;}
+[data-theme="light"] .card{text-shadow:none;}
+[data-theme="light"] .card::before{display:none;}
+[data-theme="light"] .chip,
+[data-theme="light"] .rm-chip,
+[data-theme="light"] .hotline,
+[data-theme="light"] .nav-btn,
+[data-theme="light"] #scoreboard{
+  background:#FFFFFF;border:1px solid var(--line);box-shadow:var(--shadow);
+}
+[data-theme="light"] .gc,
+[data-theme="light"] .codex-item,
+[data-theme="light"] .fstep,
+[data-theme="light"] .sc-row,
+[data-theme="light"] .example{
+  border-left:none;border:1px solid var(--line);
+  border-top:6px solid var(--accent,var(--admin));
+  background:#FFFFFF;box-shadow:var(--shadow);
+}
+[data-theme="light"] .example{
+  background:linear-gradient(180deg, var(--accent-soft,var(--admin-soft)) 0%, #FFFFFF 45%);
+}
+[data-theme="light"] .sc-row.disc{border-top-color:var(--disc);}
+[data-theme="light"] .sc-row.admin{border-top-color:var(--admin);}
+[data-theme="light"] .sc-row.crim{border-top-color:var(--crim);}
+
+[data-theme="light"] .legend .lg{opacity:1;background:#FFFFFF;color:#374151;border:1px solid var(--line);}
+[data-theme="light"] .legend .lg b{opacity:1;}
+[data-theme="light"] .legend .lg.on{color:#FFFFFF;border-color:transparent;font-weight:700;}
+[data-theme="light"] .legend .lg.on b{background:#FFFFFF !important;}
+[data-theme="light"] .legend .lg.on[data-k="disc"]{background:var(--disc);}
+[data-theme="light"] .legend .lg.on[data-k="admin"]{background:var(--admin);}
+[data-theme="light"] .legend .lg.on[data-k="crim"]{background:var(--crim);}
+
+[data-theme="light"] table.cmp tr:first-child{background:#0B1220;}
+[data-theme="light"] table.cmp tr:first-child th{color:#FFFFFF;}
+[data-theme="light"] table.cmp tr:nth-child(even){background:#F8F5EE;}
+[data-theme="light"] table.cmp tr:nth-child(odd):not(:first-child){background:#FFFFFF;}
+[data-theme="light"] table.cmp td,
+[data-theme="light"] table.cmp th{border-bottom-color:var(--line);}
+[data-theme="light"] table.cmp td{color:#1F2937;}
+
+[data-theme="light"] .ladder::before{background:var(--line-strong);}
+[data-theme="light"] .btn{background:#FFFFFF;border-color:var(--line);box-shadow:0 8px 20px rgba(15,23,42,0.08);}
+[data-theme="light"] .btn.primary{box-shadow:0 10px 26px rgba(163,92,0,0.3);}
+</style>
+
+<div id="bg-host"></div>
+<div id="vignette"></div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="chip" id="chapterChip"><span class="dot"></span><span id="chapterLabel">Кіріспе</span></div>
+    <div class="legend" id="legend">
+      <div class="lg" data-k="disc"><b style="background:var(--disc)"></b><span class="txt">Тәртіптік</span></div>
+      <div class="lg" data-k="admin"><b style="background:var(--admin)"></b><span class="txt">Әкімшілік</span></div>
+      <div class="lg" data-k="crim"><b style="background:var(--crim)"></b><span class="txt">Қылмыстық</span></div>
+    </div>
+    <div class="counter mono" id="slideCounter">01 / 30</div>
+  </div>
+
+  <main id="stage">
+    <section class="card" id="card"></section>
+  </main>
+
+  <div class="navbar">
+    <button class="nav-btn" id="prevBtn" aria-label="Алдыңғы слайд">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <span class="nav-hint">← / → неме Space — слайдтар арасында өту</span>
+    <button class="nav-btn" id="nextBtn" aria-label="Келесі слайд">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="scoreboard">
+  <div class="sb-title">ТОП ҰПАЙЛАРЫ</div>
+  <div class="sb-team" data-team="A"><span class="name">A топ</span><span class="ctrl"><button class="sb-btn" data-d="-1">−</button><span class="score mono" data-score>0</span><button class="sb-btn" data-d="1">+</button></span></div>
+  <div class="sb-team" data-team="B"><span class="name">B топ</span><span class="ctrl"><button class="sb-btn" data-d="-1">−</button><span class="score mono" data-score>0</span><button class="sb-btn" data-d="1">+</button></span></div>
+  <div class="sb-team" data-team="C"><span class="name">C топ</span><span class="ctrl"><button class="sb-btn" data-d="-1">−</button><span class="score mono" data-score>0</span><button class="sb-btn" data-d="1">+</button></span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var ACCENTS = {
+    neutral: {hex:0xA35C00, css:'var(--admin)', soft:'var(--admin-soft)'},
+    disc:    {hex:0x1D4E89, css:'var(--disc)',  soft:'var(--disc-soft)'},
+    crim:    {hex:0xB3261E, css:'var(--crim)',  soft:'var(--crim-soft)'},
+    admin:   {hex:0xA35C00, css:'var(--admin)', soft:'var(--admin-soft)'},
+    game:    {hex:0x1E7A49, css:'var(--game)',  soft:'var(--game-soft)'}
+  };
+  var CHAPTER_LABEL = {neutral:'Кіріспе', disc:'I. Тәртіптік жауапкершілік', crim:'II. Қылмыстық жауапкершілік', admin:'III. Әкімшілік жауапкершілік', game:'Топтық ойын'};
+
+  function esc(s){return s;}
+
+  var ICON_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l7 2.8v5.3c0 4.9-3 8.4-7 9.5-4-1.1-7-4.6-7-9.5V6l7-2.8z"/><path d="M9 12.1l2.1 2.1 4-4.3"/></svg>';
+  var ICON_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2.8h7l4 4v13.4a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3.8a1 1 0 0 1 1-1z"/><path d="M14 2.8V7h4.2"/><path d="M8.7 12.3h6.6M8.7 15.6h6.6M8.7 18.9h4.2"/></svg>';
+  var ICON_FLAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V3.6"/><path d="M5 4.4c2.3-1.6 4.4-1.6 6.6 0 2.3 1.6 4.4 1.6 6.6 0v10c-2.2 1.6-4.3 1.6-6.6 0-2.2-1.6-4.3-1.6-6.6 0z"/></svg>';
+  var ICON_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 5.1c0-1 .8-1.8 1.8-1.8h2.2l1.6 4.6-2 1.6a13 13 0 0 0 6.7 6.7l1.6-2 4.6 1.6V18c0 1-.8 1.8-1.8 1.8C9.6 19.8 4.2 14.4 4.2 5.1z"/></svg>';
+  var ICON_SCALE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 7h10M4 7l-2.4 5a2.8 2.8 0 0 0 4.8 0L4 7zM20 7l-2.4 5a2.8 2.8 0 0 0 4.8 0L20 7zM8.5 21h7"/></svg>';
+  var ICON_BUILDING = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V5.4L12 2l7 3.4V21"/><path d="M9 21v-5h6v5M9 9h.01M12 9h.01M15 9h.01M9 13h.01M12 13h.01M15 13h.01"/></svg>';
+
+  function rung(idx,label,isFinal){
+    return '<div class="rung'+(isFinal?' final':'')+'"><span class="idx mono">'+idx+'</span><span class="lbl">'+label+'</span><span class="tag">ең ауыр</span></div>';
+  }
+  function ladder(items){
+    return '<div class="ladder">'+items.map(function(l,i){return rung(i+1,l,i===items.length-1);}).join('')+'</div>';
+  }
+  function codex(items){
+    return '<div class="codex">'+items.map(function(a){return '<div class="codex-item"><div class="ic">'+ICON_DOC+'</div><div class="n">'+a[0]+'</div><div class="t">'+a[1]+'</div></div>';}).join('')+'</div>';
+  }
+  function example(tag,text,outcome){
+    return '<div class="example"><div class="tag">'+ICON_FLAG+tag+'</div><p>'+text+'</p><div class="outcome">→ <strong>Нәтиже:</strong> '+outcome+'</div></div>';
+  }
+  function gridCards(accent, items){
+    return '<div class="grid-cards">'+items.map(function(it){
+      return '<div class="gc" style="--accent:var(--'+accent+')"><div class="ic">'+ICON_SHIELD+'</div><h4>'+it[0]+'</h4><p>'+it[1]+'</p></div>';
+    }).join('')+'</div>';
+  }
+  function head(chapter,eyebrow,title){
+    return '<div class="eyebrow">'+eyebrow+'</div><h2 class="slide-title">'+title+'</h2>';
+  }
+
+  var SLIDES = [];
+
+  SLIDES.push({chapter:'neutral', theme:'light', kind:'title', render:function(){
+    return ''+
+    '<div class="hero-illustration">'+ICON_SCALE+'</div>'+
+    '<div class="eyebrow">Құқықтық сабақ · Сыбайлас жемқорлыққа қарсы заңнама</div>'+
+    '<h1 class="hero-title">Сыбайлас жемқорлық құқықбұзушылықтар үшін құқықтық жауапкершілік</h1>'+
+    '<p class="lede">Қазақстан Республикасының заңнамасы бойынша жауапкершіліктің үш сатысы: қызметтік тәртіптен бастап қылмыстық жазаға дейін. Соңында — топтық ойын-сауал.</p>'+
+    '<div class="kicker-roadmap">'+
+      '<div class="rm-chip disc"><span class="num mono">01</span><span class="lbl">Жауапкершілік түсінігі</span></div>'+
+      '<div class="rm-chip crim"><span class="num mono">02</span><span class="lbl">Қылмыстық жауапкершілік</span></div>'+
+      '<div class="rm-chip admin"><span class="num mono">03</span><span class="lbl">Әкімшілік жауапкершілік</span></div>'+
+    '</div>';
+  }});
+
+  SLIDES.push({chapter:'neutral', theme:'light', render:function(){
+    return head('neutral','Негізгі ұғым','«Сыбайлас жемқорлық» заң бойынша нені білдіреді?')+
+    '<div class="body-text" style="margin-top:18px">«Сыбайлас жемқорлыққа қарсы іс-қимыл туралы» Заңның 1-бабы бойынша бұл — лауазымды адамдардың өз өкілеттігін <strong>жеке игілік алу үшін заңсыз пайдалануы</strong>, сол сияқты осындай игілікті беру арқылы оларды <strong>сатып алу</strong>.</div>'+
+    gridCards('admin', [
+      ['Кімдер жатады','Жауапты мемлекеттік лауазымды адамдар, мемлекеттік функция атқарушылар, оларға теңестірілген тұлғалар, лауазымды адамдар.'],
+      ['Бірінші тараптан','Өкілеттікті жеке өзі немесе делдал арқылы игілік пен артықшылық алу мақсатында заңсыз пайдалану.'],
+      ['Екінші тараптан','Сол игілік пен артықшылықтарды ұсыну арқылы лауазымды адамды параға сатып алу.']
+    ])+
+    '<div class="body-text" style="margin-top:26px">Міндетін орындамаған мемлекеттік қызметші заңға сәйкес жауапкершіліктің төрт сатысына тартылады:</div>'+
+    ladder(['Азаматтық-құқықтық жауапкершілік','Тәртіптік жауапкершілік','Әкімшілік жауапкершілік','Қылмыстық жауапкершілік']);
+  }});
+
+  SLIDES.push({chapter:'neutral', theme:'light', render:function(){
+    return head('neutral','Күмәнді өкім','Заңсыз болуы мүмкін өкімді алғанда не істеу керек?')+
+    '<div class="flowsteps">'+
+      '<div class="fstep"><div class="n mono">01</div><p>Қызметші өкімнің құқыққа қайшы екеніне күмәнданады.</p></div>'+
+      '<div class="farrow">→</div>'+
+      '<div class="fstep"><div class="n mono">02</div><p>Тікелей басшысына <strong style="color:var(--paper)">және</strong> өкімді берген басшыға жазбаша түрде дереу хабарлайды.</p></div>'+
+      '<div class="farrow">→</div>'+
+      '<div class="fstep"><div class="n mono">03</div><p>Жоғары басшы өкімді жазбаша растаса — қылмыстық жазаланбайтын болса, орындауға міндетті.</p></div>'+
+    '</div>'+
+    '<div class="body-text" style="margin-top:18px">Сонымен қатар қызметшінің өзіне қатысты қабылданған шешімге заңда белгіленген тәртіппен шағымдану құқығы сақталады.</div>';
+  }});
+
+  SLIDES.push({chapter:'disc', theme:'light', render:function(){
+    return head('disc','I. Тәртіптік жауапкершілік','Тәртіптік теріс қылық дегеніміз не?')+
+    '<div class="body-text" style="margin-top:18px">Мемлекеттік қызметшінің өзіне жүктелген міндеттерді <strong>құқыққа қайшы, кінәлі түрде</strong> орындамауы немесе тиісінше орындамауы, лауазымдық өкілеттікті асыра пайдалануы, қызметтік тәртіп пен әдепті бұзуы, сол сияқты мемлекеттік қызметтегі заңды шектеулерді сақтамауы.</div>'+
+    gridCards('disc', [
+      ['Негізсіз бұйрық беру','Құқыққа сыйымсыз тағайындау, босату немесе тәртіптік жаза қолдану.'],
+      ['Мүдделер қақтығысы','Оны болғызбау жөніндегі шараларды қасақана қабылдамау.'],
+      ['Бағыныштыларды қадағаламау','Сыбайлас жемқорлықтың алдын алу міндетін орындамау.']
+    ]);
+  }});
+
+  SLIDES.push({chapter:'disc', theme:'light', render:function(){
+    return head('disc','I. Тәртіптік жауапкершілік','Теріс қылықтың үш дәрежесі және жаза сатысы')+
+    '<div class="tbl-wrap"><table class="cmp"><tr><th>Дәреже</th><th>Қандай жағдайда</th><th>Жаза</th></tr>'+
+    '<tr><td class="hl">Елеусіз</td><td>Жазасы жоқ немесе бұрынғы жаза алынған қызметшінің теріс қылығы</td><td>Ескерту, сөгіс, қатаң сөгіс</td></tr>'+
+    '<tr><td class="hl">Елеулі</td><td>Алынбаған ескерту/сөгіс/қатаң сөгіс бар кезде жасалған теріс қылық</td><td>Қызметке сәйкес еместігі туралы ескерту немесе лауазымын төмендету</td></tr>'+
+    '<tr><td class="hl">Өрескел</td><td>Қызметтен шығаруға негіз болатын теріс қылық немесе алынбаған ауыр жаза бар кезде жасалған</td><td>Атқаратын лауазымынан босату</td></tr>'+
+    '</table></div>'+
+    '<div class="body-text" style="margin-top:24px">Теріс қылықтың ауырлығына қарай алты сатылы жаза қолданылады — ең жеңілінен ең ауырына дейін:</div>'+
+    ladder(['Ескерту','Сөгіс','Қатаң сөгіс','Қызметке толық сәйкес еместігі туралы ескерту','Мемлекеттік лауазымын төмендету','Атқаратын лауазымынан шығару']);
+  }});
+
+  SLIDES.push({chapter:'disc', theme:'light', render:function(){
+    return head('disc','I. Тәртіптік жауапкершілік','Қызметке кір келтіретін теріс қылықтар')+
+    gridCards('disc', [
+      ['Тамыр-таныстық','Жақын туыстарының материалдық мүддесін қанағаттандыру, тағайындауда негізсіз артықшылық беру.'],
+      ['Сый-сияпат','Хабарсыз келіп түскен сый-сияпатты 7 күн ішінде тапсырмау, туристік сапар шақыруларын заңсыз қабылдау.'],
+      ['Ақпаратпен теріс әрекет','Ақпарат беруден негізсіз бас тарту, кешіктіру немесе оны жеке мүддеге пайдалану.'],
+      ['Кәсіпкерлікке араласу','Бақылау-қадағалау өкілеттігін кәсіпкерлік қызметпен ұштастыру, тексеру талаптарын бұзу.'],
+      ['Билікті теріс пайдалану','Мемлекеттік қаржы-мүлікті жеке мақсатта қолдану, сайлау қорына бюджет қаражатын беру.'],
+      ['Құмар ойын','Қызмет бабында тәуелді лауазымды адамдармен ақшалай құмар ойынға қатысу.']
+    ]);
+  }});
+
+  SLIDES.push({chapter:'disc', theme:'light', render:function(){
+    return head('disc','I. Тәртіптік жауапкершілік','Мысал: тамыр-таныстық')+
+    example('Мысал — елеулі теріс қылық',
+      'Аудандық әкімдіктің бөлім маманы туған ағасының жеке кәсіпкерлік өтінімін кезектен тыс, міндетті тексерусіз мақұлдайды.',
+      'Бұл — жеке мүдде үшін лауазымды пайдалану. Алынбаған сөгісі бар болғандықтан, қызметшіге <strong>лауазымын төмендету</strong> түріндегі тәртіптік жаза қолданылады.')+
+    '<div style="height:4px"></div>'+
+    example('Мысал — өрескел теріс қылық',
+      'Сол қызметкер бір жылдан кейін тестілеу сұрақтарының мазмұнын таныстарына алдын ала жария етеді.',
+      'Алдыңғы жазасы алынбаған күйде жасалған жаңа теріс қылық — <strong>атқаратын лауазымынан босату</strong>.');
+  }});
+
+  SLIDES.push({chapter:'crim', theme:'light', render:function(){
+    return head('crim','II. Қылмыстық жауапкершілік','ҚК 15-тарау: мемлекеттік қызмет мүддесіне қарсы қылмыстар')+
+    '<div class="body-text" style="margin-top:14px">Қазақстан Республикасы Қылмыстық кодексінің арнайы тарауы сыбайлас жемқорлық қылмыстарының толық тізбесін белгілейді.</div>'+
+    codex([['361','Лауазымдық өкілеттікті теріс пайдалану'],['362','Билікті/өкілеттікті асыра пайдалану'],['363','Өкілеттікті иемденіп алу'],['364','Кәсіпкерлікке заңсыз қатысу'],['365','Кәсіпкерлікке кедергі жасау'],['366','Пара алу'],['367','Пара беру'],['368','Парақорлыққа делдал болу'],['369','Қызметтік жалғандық'],['370','Қызметтегі әрекетсіздік'],['371','Салғырттық']]);
+  }});
+
+  SLIDES.push({chapter:'crim', theme:'light', render:function(){
+    return head('crim','II. Қылмыстық жауапкершілік','Мысалдар және жазалар')+
+    '<div class="twocol">'+
+      example('Мысал · 366-бап','Мемлекеттік сатып алу жөніндегі маман белгілі бір компанияны жеңімпаз етіп тану үшін оның басшысынан 500 000 теңге алады.','«Пара алу» — ҚК-нің <b style="color:var(--crim)">366-бабы</b>.')+
+      example('Мысал · 367-бап','Құрылыс компаниясының директоры тендерде жеңу үшін комиссия мүшесіне ақша ұсынады.','«Пара беру» — ҚК-нің <b style="color:var(--crim)">367-бабы</b>.')+
+    '</div>'+
+    '<div class="body-text" style="margin-top:22px">Әкімшілік және тәртіптік шаралардан айырмашылығы — мұнда мүлікті тәркілеу мен бас бостандығынан айыру қолданылады:</div>'+
+    ladder(['Айыппұл салу','Түзеу жұмыстарына тарту','Қоғамдық жұмыстарға тарту','Бас бостандығын шектеу','Бас бостандығынан айыру','Мүлкін тәркілеу + лауазым атқару құқығынан өмір бойына айыру']);
+  }});
+
+  SLIDES.push({chapter:'admin', theme:'light', render:function(){
+    return head('admin','III. Әкімшілік жауапкершілік','ӚҚБтК 34-тарау: әкімшілік сыбайлас жемқорлық құқықбұзушылықтар')+
+    '<div class="body-text" style="margin-top:14px">Қылмыстық жаза деңгейіне жетпейтін, бірақ заңсыз материалдық сыйақымен байланысты әрекеттер осы тараумен реттеледі.</div>'+
+    codex([['676','Жеке тұлғаның заңсыз сый беруі'],['677','Уәкілетті тұлғаның заңсыз сый алуы'],['678','Заңды тұлғаның заңсыз сый беруі'],['679','Мемлекеттік органның заңсыз кәсіпкерлігі'],['680','Басшының шара қабылдамауы'],['681','Бұрын сыбайлас жемқорлық жасағанды қызметке алу']])+
+    '<div class="body-text" style="margin-top:16px">Барлық алты бап бойынша қолданылатын жалғыз шара — <strong>айыппұл салу</strong>.</div>';
+  }});
+
+  SLIDES.push({chapter:'admin', theme:'light', render:function(){
+    return head('admin','III. Әкімшілік жауапкершілік','Мысал: шекара қайда өтеді?')+
+    example('Мысал','Шағын кәсіпкер тексеруші маманға шай-пұлға арналған шағын сома ұсынады; сома мен лауазым дәрежесі пара белгісіне жетпейді.','Әрекет <strong>әкімшілік</strong> жауапкершілікке — <b style="color:var(--admin)">айыппұлға</b> әкеледі, қылмыстық іс қозғалмайды.')+
+    '<div class="tbl-wrap" style="margin-top:20px"><table class="cmp"><tr><th>Белгі</th><th>Әкімшілік құқықбұзушылық</th><th>Қылмыс</th></tr>'+
+    '<tr><td class="hl">Сома мен мөлшер</td><td>Шағын, жүйесіз</td><td>Елеулі немен қайталанған</td></tr>'+
+    '<tr><td class="hl">Ниет</td><td>Анық дәлелденбеген</td><td>Қасақана, мақсатты</td></tr>'+
+    '<tr><td class="hl">Лауазым дәрежесі</td><td>Шешім қабылдауға тікелей әсер етпейді</td><td>Шешімге тікелей ықпал етеді</td></tr>'+
+    '</table></div>';
+  }});
+
+  SLIDES.push({chapter:'neutral', theme:'light', render:function(){
+    return head('neutral','Қорытынды','Кім күреседі және жауапкершілік қалай бөлінеді?')+
+    gridCards('admin', [
+      ['Уәкілетті орган','Сыбайлас жемқорлыққа қарсы іс-қимыл агенттігі — саясатты іске асырады және үйлестіреді.'],
+      ['Тергеп-тексеру','Прокуратура, ұлттық қауіпсіздік, ішкі істер, әскери полиция, экономикалық тергеп-тексеру қызметі.'],
+      ['Әрбір мемлекеттік орган','Құзыреті шегінде іс-қимылды жүргізуге міндетті — орталықтандырылмаған жауапкершілік.']
+    ])+
+    '<div class="hotline" style="margin-top:20px"><div class="ic">'+ICON_PHONE+'</div><div class="num mono">1424</div><div class="txt">Сыбайлас жемқорлық фактісі туралы хабарлау үшін тегін call-орталық. Хабарлаған адам мемлекет қорғауында болады және көтермеленеді.</div></div>'+
+    '<div class="scorecard" style="margin-top:20px">'+
+      '<div class="sc-row disc"><div class="k">Тәртіптік</div><div class="v">Негізі: <b>қызметтік теріс қылық</b> · Жаза: ескертуден лауазымнан босатуға дейін · Қарайды: тікелей басшы / мемлекеттік орган</div></div>'+
+      '<div class="sc-row admin"><div class="k">Әкімшілік</div><div class="v">Негізі: <b>заңсыз сый-сыйақы, шағын мөлшер</b> · Жаза: тек айыппұл · Қарайды: сот / уәкілетті орган</div></div>'+
+      '<div class="sc-row crim"><div class="k">Қылмыстық</div><div class="v">Негізі: <b>пара, өкілеттікті теріс пайдалану</b> · Жаза: тәркілеуден бас бостандығынан айыруға дейін · Қарайды: сот</div></div>'+
+    '</div>';
+  }});
+
+  SLIDES.push({chapter:'game', theme:'light', kind:'gameintro', render:function(){
+    return '<div class="eyebrow" style="color:var(--game)">Топтық ойын</div>'+
+    '<h2 class="slide-title">Білім айнасы: сыбайлас жемқорлыққа қарсы заңнама</h2>'+
+    '<div class="gameintro-steps">'+
+      '<div class="gi"><span class="n">01</span><p>Топты 2–3 кішігірім топқа бөліңіз — A, B, C.</p></div>'+
+      '<div class="gi"><span class="n">02</span><p>Кезекті топ келесі слайдтағы тақтадан категория мен ұпай санын таңдайды.</p></div>'+
+      '<div class="gi"><span class="n">03</span><p>Сұрақ үлкен экранға шығады — топ дауыстап жауап береді, сосын «Жауапты көрсету» басылады.</p></div>'+
+      '<div class="gi"><span class="n">04</span><p>Дұрыс тапқан топтың панеліндегі +100 батырмасын басып, ұпай қосыңыз да, тақтаға оралыңыз.</p></div>'+
+    '</div>'+
+    '<div class="body-text" style="margin-top:20px">5 категория × 5 деңгей = 25 сұрақ. Ұпайлар мен жабылған ұяшықтар автоматты сақталады. Сәттілік тілейміз!</div>';
+  }});
+
+  var CATEGORIES = [
+    {key:'concept', name:'Негіздер', accent:'violet', items:[
+      {val:100, q:'Сыбайлас жемқорлыққа қарсы саясатты іске асыратын уәкілетті орган қалай аталады?', a:'Сыбайлас жемқорлыққа қарсы іс-қимыл агенттігі.'},
+      {val:200, q:'Мемлекеттік қызметші қызметтік міндетін орындамағаны үшін жауапкершіліктің неше түрі көзделген?', a:'Төрт түрі: азаматтық-құқықтық, тәртіптік, әкімшілік, қылмыстық.'},
+      {val:300, q:'Заңсыз болуы мүмкін өкімге күдіктенген қызметші бұл туралы кімге жазбаша хабарлауға тиіс?', a:'Тікелей басшысына және өкімді берген басшыға — дереу, жазбаша түрде.'},
+      {val:400, q:'«Сыбайлас жемқорлық» анықтамасы бойынша лауазымды адам өз өкілеттігін кімнің пайдасына заңсыз пайдалана алады?', a:'Жеке өзінің немесе үшінші тұлғалардың мүліктік игілігі үшін.'},
+      {val:500, q:'Жоғары басшы күдікті өкімді жазбаша растаған жағдайда, қызметші оны қашан орындамауға құқылы?', a:'Егер оны орындау қылмыстық жазалануға тиіс әрекетке әкеп соғатын болса.'}
+    ]},
+    {key:'disc', name:'Тәртіптік', accent:'disc', items:[
+      {val:100, q:'Тәртіптік жазалардың ең жеңілі қалай аталады?', a:'Ескерту.'},
+      {val:200, q:'Тәртіптік теріс қылықтың үш дәрежесі қалай аталады?', a:'Елеусіз, елеулі, өрескел.'},
+      {val:300, q:'Алынбаған ескерту, сөгіс немесе қатаң сөгісі бар кезде жасалған теріс қылық қалай аталады?', a:'Елеулі теріс қылық.'},
+      {val:400, q:'Хабарсыз келіп түскен сый-сыйлықты мемлекеттік мүлікті басқару органына қанша күн ішінде тапсыру керек?', a:'Күнтізбелік 7 күн ішінде.'},
+      {val:500, q:'Өрескел тәртіптік теріс қылық үшін қолданылатын жалғыз жаза қандай?', a:'Атқаратын мемлекеттік лауазымынан босату (шығару).'}
+    ]},
+    {key:'crim', name:'Қылмыстық', accent:'crim', items:[
+      {val:100, q:'ҚК-нің қай бабы «Пара алу» үшін жауапкершілік белгілейді?', a:'366-бап.'},
+      {val:200, q:'«Пара беру» әрекеті ҚК-нің қай бабы бойынша қылмыс болып табылады?', a:'367-бап.'},
+      {val:300, q:'«Парақорлыққа делдал болу» ҚК-нің қай бабында көзделген?', a:'368-бап.'},
+      {val:400, q:'Бас бостандығынан айырудан басқа, сыбайлас жемқорлық қылмыстары үшін қолданылатын ең ауыр мүліктік жаза қандай?', a:'Мүлкін тәркілеу.'},
+      {val:500, q:'Сыбайлас жемқорлық қылмыстары үшін қандай құқықтан өмір бойына айыру қолданылуы мүмкін?', a:'Белгілі бір лауазымдарды атқару немесе белгілі бір қызметпен айналысу құқығынан.'}
+    ]},
+    {key:'admin', name:'Әкімшілік', accent:'admin', items:[
+      {val:100, q:'Әкімшілік сыбайлас жемқорлық құқықбұзушылықтары қай кодексте көзделген?', a:'Әкімшілік құқықбұзушылық туралы кодексте, 34-тарауда.'},
+      {val:200, q:'34-тараудың барлық алты бабы бойынша қолданылатын жалғыз әкімшілік-құқықтық шара қандай?', a:'Айыппұл салу.'},
+      {val:300, q:'ӘҚБтК-нің қай бабы «жеке тұлғаның заңсыз материалдық сыйақы беруін» реттейді?', a:'676-бап.'},
+      {val:400, q:'Бұрын сыбайлас жемқорлық қылмыс жасаған адамды жұмысқа қабылдау қай бап бойынша құқықбұзушылық болып табылады?', a:'681-бап.'},
+      {val:500, q:'Әкімшілік және қылмыстық жауапкершілікті бір-бірінен ажырататын үш негізгі белгіні атаңыз.', a:'Сыйақының мөлшері, ниеттің қасақана/жүйелі сипаты және лауазым дәрежесінің шешімге тигізетін әсері.'}
+    ]},
+    {key:'inst', name:'Институттар', accent:'game', items:[
+      {val:100, q:'Сыбайлас жемқорлық фактісі туралы хабарлау үшін қай тегін нөмірге қоңырау шалуға болады?', a:'1424.'},
+      {val:200, q:'Сыбайлас жемқорлық туралы хабарлаған адам мемлекет тарапынан нені алады?', a:'Заңмен белгіленген қорғау мен көтермелеуді.'},
+      {val:300, q:'Сыбайлас жемқорлық туралы көрінеу жалған ақпарат хабарлаған адамды не күтеді?', a:'Заңға сәйкес жауапкершілік.'},
+      {val:400, q:'Тендерде жеңу үшін комиссия мүшесіне ақша ұсынған құрылыс компаниясының директорының әрекеті қалай аталады?', a:'Пара беру — ҚК-нің 367-бабы.'},
+      {val:500, q:'Сыбайлас жемқорлыққа қарсы іс-қимылды өз құзыреті шегінде жүргізуге кім міндетті?', a:'Барлық мемлекеттік органдар, ұйымдар, квазимемлекеттік сектор субъектілері және лауазымды адамдар.'}
+    ]}
+  ];
+
+  SLIDES.push({chapter:'game', theme:'light', kind:'board', render:function(){
+    var teams = [
+      {t:'A', hue:'disc'}, {t:'B', hue:'admin'}, {t:'C', hue:'crim'}
+    ];
+    var teamsHtml = teams.map(function(tm){
+      return '<div class="team-panel" data-team="'+tm.t+'" style="--tc:var(--'+tm.hue+')">'+
+        '<span class="tp-name">'+tm.t+' топ</span>'+
+        '<span class="tp-score mono" data-score>0</span>'+
+        '<span class="tp-ctrl"><button class="tp-btn" data-d="-100">−100</button><button class="tp-btn" data-d="100">+100</button></span>'+
+      '</div>';
+    }).join('');
+
+    var catsHtml = CATEGORIES.map(function(c){
+      return '<div class="board-cat" style="--ac:var(--'+c.accent+')">'+c.name+'</div>';
+    }).join('');
+
+    var rowsHtml = '';
+    for(var r=0;r<5;r++){
+      rowsHtml += CATEGORIES.map(function(c){
+        var item = c.items[r];
+        return '<button class="board-cell" data-id="'+c.key+'-'+item.val+'" data-cat="'+c.key+'" data-idx="'+r+'" style="--ac:var(--'+c.accent+')"><span>'+item.val+'</span></button>';
+      }).join('');
+    }
+
+    return '<div class="board-wrap">'+
+      '<div class="board-teams">'+teamsHtml+'</div>'+
+      '<div class="board-grid">'+catsHtml+rowsHtml+'</div>'+
+    '</div>'+
+    '<div class="board-overlay" id="boardOverlay">'+
+      '<div class="bo-card">'+
+        '<div class="bo-tag mono" id="boTag"></div>'+
+        '<div class="bo-q" id="boQ"></div>'+
+        '<div class="bo-a" id="boA"></div>'+
+        '<div class="bo-actions">'+
+          '<button class="btn primary" id="boShow">Жауапты көрсету</button>'+
+          '<button class="btn" id="boClose">Жабу</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }});
+
+  SLIDES.push({chapter:'game', theme:'light', render:function(){
+    return '<div class="eyebrow" style="color:var(--game)">Қорытынды</div>'+
+    '<h2 class="slide-title">Жарық әрқашан қараңғылықты жеңеді</h2>'+
+    '<div class="body-text" style="margin-top:16px">Тәртіптік ескертуден бастап қылмыстық жазаға дейін — заң сыбайлас жемқорлыққа қарсы үзілмейтін тізбек құрады. Әр азаматтың хабарламасы осы тізбектің бір бөлігі.</div>'+
+    '<div class="hotline"><div class="ic">'+ICON_PHONE+'</div><div class="num mono">1424</div><div class="txt">Фактіні көрсеңіз — үндемей қалмаңыз. Хабарлаған адам мемлекет қорғауында болады.</div></div>'+
+    '<div class="final-cta"><button class="btn primary" id="restartBtn">Слайдтарды қайтадан бастау</button><button class="btn" id="resetScoreBtn">Ойынды қайта бастау</button></div>';
+  }});
+
+  var total = SLIDES.length;
+  var idx = 0;
+
+  var cardEl = document.getElementById('card');
+  var progressFill = document.getElementById('progressFill');
+  var chapterChip = document.getElementById('chapterChip');
+  var chapterLabel = document.getElementById('chapterLabel');
+  var slideCounter = document.getElementById('slideCounter');
+  var legendEls = document.querySelectorAll('#legend .lg');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var scoreboard = document.getElementById('scoreboard');
+
+  function pad(n){return n<10?'0'+n:''+n;}
+
+  function wire(slide, el){
+    if(slide.kind==='board'){
+      var overlay = el.querySelector('#boardOverlay');
+      var boTag = el.querySelector('#boTag');
+      var boQ = el.querySelector('#boQ');
+      var boA = el.querySelector('#boA');
+      var boShow = el.querySelector('#boShow');
+      var boClose = el.querySelector('#boClose');
+
+      function closeOverlay(){
+        overlay.classList.remove('open');
+        var id = overlay.getAttribute('data-cell-id');
+        if(id){
+          answeredCells[id] = true;
+          saveAnswered();
+          var cell = el.querySelector('.board-cell[data-id="'+id+'"]');
+          if(cell) cell.classList.add('answered');
+        }
+      }
+      boShow.onclick = function(){ boA.classList.add('show'); };
+      boClose.onclick = closeOverlay;
+      overlay.__close = closeOverlay;
+      overlay.__reveal = function(){ boA.classList.add('show'); };
+
+      el.querySelectorAll('.board-cell').forEach(function(cell){
+        var id = cell.getAttribute('data-id');
+        if(answeredCells[id]) cell.classList.add('answered');
+        cell.addEventListener('click', function(){
+          if(answeredCells[id]) return;
+          var catKey = cell.getAttribute('data-cat');
+          var ridx = parseInt(cell.getAttribute('data-idx'),10);
+          var cat = CATEGORIES.filter(function(c){return c.key===catKey;})[0];
+          var item = cat.items[ridx];
+          overlay.style.setProperty('--ac','var(--'+cat.accent+')');
+          overlay.setAttribute('data-cell-id', id);
+          boTag.textContent = cat.name.toUpperCase()+' · '+item.val;
+          boQ.textContent = item.q;
+          boA.textContent = item.a;
+          boA.classList.remove('show');
+          overlay.classList.add('open');
+        });
+      });
+    }
+    var restartBtn = el.querySelector('#restartBtn');
+    if(restartBtn) restartBtn.addEventListener('click', function(){ go(0); });
+    var resetScoreBtn = el.querySelector('#resetScoreBtn');
+    if(resetScoreBtn) resetScoreBtn.addEventListener('click', function(){ resetGame(); });
+  }
+
+  var renderTimer = null;
+  function render(){
+    var slide = SLIDES[idx];
+    cardEl.classList.remove('in');
+    if(renderTimer) clearTimeout(renderTimer);
+    renderTimer = setTimeout(function(){
+      cardEl.className = 'card'+(slide.kind==='board' ? ' card-board' : '')+(slide.kind==='title' ? ' card-title' : '');
+      cardEl.innerHTML = slide.render();
+      cardEl.scrollTop = 0;
+      wire(slide, cardEl);
+      requestAnimationFrame(function(){ cardEl.classList.add('in'); });
+    }, 140);
+
+    var acc = ACCENTS[slide.chapter] || ACCENTS.neutral;
+    document.documentElement.style.setProperty('--accent', acc.css);
+    document.documentElement.style.setProperty('--accent-soft', acc.soft);
+    document.documentElement.setAttribute('data-theme', slide.theme || 'dark');
+    progressFill.style.width = (100*(idx+1)/total)+'%';
+    chapterLabel.textContent = CHAPTER_LABEL[slide.chapter] || 'Кіріспе';
+    slideCounter.textContent = pad(idx+1)+' / '+pad(total);
+    legendEls.forEach(function(l){ l.classList.toggle('on', l.getAttribute('data-k')===slide.chapter); });
+    scoreboard.classList.toggle('visible', slide.chapter==='game' && slide.kind!=='board');
+    prevBtn.disabled = idx===0;
+    nextBtn.disabled = idx===total-1;
+    if(window.__bg){
+      window.__bg.setAccent(acc.hex);
+      window.__bg.setTheme(slide.theme || 'dark');
+    }
+  }
+
+  function go(i){
+    idx = Math.max(0, Math.min(total-1, i));
+    render();
+  }
+  function next(){ if(idx<total-1) go(idx+1); }
+  function prev(){ if(idx>0) go(idx-1); }
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+  window.addEventListener('keydown', function(e){
+    var openOverlay = document.querySelector('.board-overlay.open');
+    if(openOverlay){
+      if(e.key==='Escape' || e.key==='Enter'){ e.preventDefault(); openOverlay.__close(); }
+      else if(e.key===' '){ e.preventDefault(); openOverlay.__reveal(); }
+      return;
+    }
+    if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown'){ e.preventDefault(); next(); }
+    else if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); prev(); }
+    else if(e.key==='Home'){ e.preventDefault(); go(0); }
+    else if(e.key==='End'){ e.preventDefault(); go(total-1); }
+  });
+
+  var SCORE_KEY = 'corruption-board-scores-v1';
+  var ANSWERED_KEY = 'corruption-board-answered-v1';
+  var scores = {A:0,B:0,C:0};
+  var answeredCells = {};
+  try{
+    var savedScores = JSON.parse(localStorage.getItem(SCORE_KEY) || 'null');
+    if(savedScores) scores = savedScores;
+    answeredCells = JSON.parse(localStorage.getItem(ANSWERED_KEY) || '{}') || {};
+  }catch(e){}
+  function saveScores(){ try{ localStorage.setItem(SCORE_KEY, JSON.stringify(scores)); }catch(e){} }
+  function saveAnswered(){ try{ localStorage.setItem(ANSWERED_KEY, JSON.stringify(answeredCells)); }catch(e){} }
+  function renderScores(){
+    document.querySelectorAll('[data-team]').forEach(function(row){
+      var t = row.getAttribute('data-team');
+      var scoreEl = row.querySelector('[data-score]');
+      if(scoreEl) scoreEl.textContent = scores[t];
+    });
+  }
+  function resetGame(){
+    scores = {A:0,B:0,C:0};
+    answeredCells = {};
+    saveScores();
+    saveAnswered();
+    renderScores();
+    document.querySelectorAll('.board-cell.answered').forEach(function(c){ c.classList.remove('answered'); });
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.sb-btn, .tp-btn');
+    if(!btn) return;
+    var row = btn.closest('[data-team]');
+    if(!row) return;
+    var t = row.getAttribute('data-team');
+    var d = parseInt(btn.getAttribute('data-d'),10);
+    scores[t] = Math.max(0, scores[t]+d);
+    saveScores();
+    renderScores();
+  });
+  renderScores();
+
+  render();
+
+  function initBG(){
+    if(typeof THREE==='undefined') return;
+    var host = document.getElementById('bg-host');
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x10172a, 0.04);
+    var camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.set(0,0,17);
+
+    var renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x10172a, 1);
+    host.appendChild(renderer.domElement);
+
+    function dotTexture(){
+      var c = document.createElement('canvas'); c.width=64; c.height=64;
+      var ctx = c.getContext('2d');
+      var g = ctx.createRadialGradient(32,32,0,32,32,32);
+      g.addColorStop(0,'rgba(255,255,255,1)');
+      g.addColorStop(0.4,'rgba(255,255,255,0.7)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,64,64);
+      return new THREE.CanvasTexture(c);
+    }
+    function beamTexture(){
+      var c = document.createElement('canvas'); c.width=32; c.height=256;
+      var ctx = c.getContext('2d');
+      var g = ctx.createLinearGradient(0,0,0,256);
+      g.addColorStop(0,'rgba(255,255,255,0)');
+      g.addColorStop(0.5,'rgba(255,255,255,0.9)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,32,256);
+      return new THREE.CanvasTexture(c);
+    }
+    function ringTexture(){
+      var c = document.createElement('canvas'); c.width=128; c.height=128;
+      var ctx = c.getContext('2d');
+      ctx.strokeStyle = 'rgba(255,255,255,1)';
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(64,64,48,0,Math.PI*2); ctx.stroke();
+      return new THREE.CanvasTexture(c);
+    }
+
+    var N = 96;
+    var positions = new Float32Array(N*3);
+    var colors = new Float32Array(N*3);
+    var baseColor = new THREE.Color(0x0B1220);
+    var flaggedIdx = [];
+    var tmp = new THREE.Color();
+
+    for(var i=0;i<N;i++){
+      var r, x,y,z;
+      do{
+        var theta = Math.random()*Math.PI*2;
+        var phi = Math.acos(2*Math.random()-1);
+        r = 7.5 + Math.random()*4.2;
+        x = r*Math.sin(phi)*Math.cos(theta);
+        y = r*Math.cos(phi)*0.62;
+        z = r*Math.sin(phi)*Math.sin(theta)*0.9 - 2;
+      } while(Math.abs(x)<6.5 && Math.abs(y)<4.2);
+      positions[i*3]=x; positions[i*3+1]=y; positions[i*3+2]=z;
+      tmp.copy(baseColor);
+      colors[i*3]=tmp.r; colors[i*3+1]=tmp.g; colors[i*3+2]=tmp.b;
+    }
+    var flagCount = 12;
+    while(flaggedIdx.length<flagCount){
+      var fi = Math.floor(Math.random()*N);
+      if(flaggedIdx.indexOf(fi)===-1) flaggedIdx.push(fi);
+    }
+    var isFlagged = new Array(N).fill(false);
+    flaggedIdx.forEach(function(fi4){ isFlagged[fi4] = true; });
+
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+    var mat = new THREE.PointsMaterial({
+      size:0.42, map:dotTexture(), transparent:true, vertexColors:true,
+      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true
+    });
+    var points = new THREE.Points(geo, mat);
+
+    var linePositions = [];
+    var K = 2;
+    for(var a=0;a<N;a++){
+      var dists = [];
+      for(var b=0;b<N;b++){
+        if(a===b) continue;
+        var dx=positions[a*3]-positions[b*3], dy=positions[a*3+1]-positions[b*3+1], dz=positions[a*3+2]-positions[b*3+2];
+        dists.push([b, dx*dx+dy*dy+dz*dz]);
+      }
+      dists.sort(function(p,q){return p[1]-q[1];});
+      for(var k=0;k<K;k++){
+        var bIdx = dists[k][0];
+        linePositions.push(positions[a*3],positions[a*3+1],positions[a*3+2]);
+        linePositions.push(positions[bIdx*3],positions[bIdx*3+1],positions[bIdx*3+2]);
+      }
+    }
+    var lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePositions),3));
+    var lineMat = new THREE.LineBasicMaterial({color:0x8db4ca, transparent:true, opacity:0.13, blending:THREE.AdditiveBlending});
+    var lines = new THREE.LineSegments(lineGeo, lineMat);
+
+    var group = new THREE.Group();
+    group.add(lines); group.add(points);
+    group.rotation.x = 0.18;
+    scene.add(group);
+
+    var ringTex = ringTexture();
+    var pingSprites = flaggedIdx.map(function(){
+      var m = new THREE.SpriteMaterial({map:ringTex, color:0xA35C00, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false});
+      var s = new THREE.Sprite(m);
+      s.scale.set(0.1,0.1,1);
+      group.add(s);
+      return s;
+    });
+
+    var beamMat = new THREE.SpriteMaterial({map:beamTexture(), color:0xA35C00, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false});
+    var beam = new THREE.Sprite(beamMat);
+    beam.scale.set(26, 5, 1);
+    beam.position.set(0,8,2);
+    scene.add(beam);
+
+    var beamMat2 = new THREE.SpriteMaterial({map:beamTexture(), color:0xA35C00, transparent:true, opacity:0.1, blending:THREE.AdditiveBlending, depthWrite:false, rotation:Math.PI/2});
+    var beam2 = new THREE.Sprite(beamMat2);
+    beam2.scale.set(5, 22, 1);
+    beam2.position.set(-6,0,1);
+    scene.add(beam2);
+
+    var currentAccent = new THREE.Color(0xA35C00);
+    var targetAccent = new THREE.Color(0xA35C00);
+
+    function setAccent(hex){
+      targetAccent.setHex(hex);
+    }
+
+    var THEMES = {
+      dark:  {bg:0x10172a, dot:0x8293ab, dotOpacity:1,    line:0x8db4ca, lineOpacity:0.13, beamMul:1,    pingMul:1,    additive:true},
+      light: {bg:0xF3EEE3, dot:0x0B1220, dotOpacity:0.24, line:0x0B1220, lineOpacity:0.2,  beamMul:0.16, pingMul:0.26, additive:false}
+    };
+    var currentBG = new THREE.Color(THEMES.dark.bg);
+    var targetBG = new THREE.Color(THEMES.dark.bg);
+    var currentDot = new THREE.Color(THEMES.dark.dot);
+    var targetDot = new THREE.Color(THEMES.dark.dot);
+    var currentLine = new THREE.Color(THEMES.dark.line);
+    var targetLine = new THREE.Color(THEMES.dark.line);
+    var mix = {dotOpacity:THEMES.dark.dotOpacity, lineOpacity:THEMES.dark.lineOpacity, beamMul:THEMES.dark.beamMul, pingMul:THEMES.dark.pingMul};
+    var targetMix = {dotOpacity:THEMES.dark.dotOpacity, lineOpacity:THEMES.dark.lineOpacity, beamMul:THEMES.dark.beamMul, pingMul:THEMES.dark.pingMul};
+
+    function setTheme(name){
+      var th = THEMES[name] || THEMES.dark;
+      targetBG.setHex(th.bg);
+      targetDot.setHex(th.dot);
+      targetLine.setHex(th.line);
+      targetMix.dotOpacity = th.dotOpacity;
+      targetMix.lineOpacity = th.lineOpacity;
+      targetMix.beamMul = th.beamMul;
+      targetMix.pingMul = th.pingMul;
+      var blend = th.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+      mat.blending = blend;
+      lineMat.blending = blend;
+      beamMat.blending = blend;
+      beamMat2.blending = blend;
+      pingSprites.forEach(function(s){ s.material.blending = blend; });
+    }
+    window.__bg = {setAccent:setAccent, setTheme:setTheme};
+
+    var initialSlide = SLIDES[idx];
+    if(initialSlide){
+      targetAccent.setHex((ACCENTS[initialSlide.chapter] || ACCENTS.neutral).hex);
+      currentAccent.copy(targetAccent);
+    }
+    setTheme((initialSlide && initialSlide.theme) || 'dark');
+    currentBG.copy(targetBG);
+    currentDot.copy(targetDot);
+    currentLine.copy(targetLine);
+    mix.dotOpacity = targetMix.dotOpacity;
+    mix.lineOpacity = targetMix.lineOpacity;
+    mix.beamMul = targetMix.beamMul;
+    mix.pingMul = targetMix.pingMul;
+    renderer.setClearColor(currentBG, 1);
+    scene.fog.color.copy(currentBG);
+
+    var mouseX = 0, mouseY = 0;
+    if(!reduced){
+      window.addEventListener('pointermove', function(e){
+        mouseX = (e.clientX/window.innerWidth)*2-1;
+        mouseY = (e.clientY/window.innerHeight)*2-1;
+      });
+    }
+
+    function onResize(){
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    window.addEventListener('resize', onResize);
+
+    var clock = new THREE.Clock();
+    var colorAttr = geo.getAttribute('color');
+
+    var pingPeriod = 2.6;
+    function frame(){
+      var dt = clock.getDelta();
+      var t = clock.elapsedTime;
+
+      if(!reduced){
+        group.rotation.y += dt*0.065;
+        camera.position.x = Math.sin(t*0.06)*1.1 + mouseX*0.7;
+        camera.position.y = Math.cos(t*0.05)*0.6 - mouseY*0.45;
+        camera.lookAt(0,0,-1);
+
+        beam.position.y = ((t*0.5) % 20) - 10;
+        beam.material.opacity = (0.1 + 0.08*Math.sin(t*1.3)*Math.sin(t*1.3)) * mix.beamMul;
+
+        beam2.position.x = ((t*0.42 + 6) % 20) - 10;
+        beam2.material.opacity = (0.06 + 0.07*Math.sin(t*1.1+1.4)*Math.sin(t*1.1+1.4)) * mix.beamMul;
+      }
+
+      currentAccent.lerp(targetAccent, 0.05);
+      currentBG.lerp(targetBG, 0.09);
+      currentDot.lerp(targetDot, 0.09);
+      currentLine.lerp(targetLine, 0.09);
+      mix.dotOpacity += (targetMix.dotOpacity-mix.dotOpacity)*0.09;
+      mix.lineOpacity += (targetMix.lineOpacity-mix.lineOpacity)*0.09;
+      mix.beamMul += (targetMix.beamMul-mix.beamMul)*0.09;
+      mix.pingMul += (targetMix.pingMul-mix.pingMul)*0.09;
+
+      renderer.setClearColor(currentBG, 1);
+      scene.fog.color.copy(currentBG);
+      mat.opacity = mix.dotOpacity;
+      lineMat.color.copy(currentLine);
+      lineMat.opacity = mix.lineOpacity;
+      beamMat.color.copy(currentAccent);
+      beamMat2.color.copy(currentAccent);
+
+      var changed = false;
+      for(var fi2=0; fi2<flaggedIdx.length; fi2++){
+        var ii = flaggedIdx[fi2];
+        var cr = colorAttr.array[ii*3], cg = colorAttr.array[ii*3+1], cb = colorAttr.array[ii*3+2];
+        var nr = cr + (currentAccent.r - cr)*0.05;
+        var ng = cg + (currentAccent.g - cg)*0.05;
+        var nb = cb + (currentAccent.b - cb)*0.05;
+        colorAttr.array[ii*3]=nr; colorAttr.array[ii*3+1]=ng; colorAttr.array[ii*3+2]=nb;
+        changed = true;
+
+        if(!reduced){
+          var phase = (((t*0.5)+fi2*0.41) % pingPeriod)/pingPeriod;
+          var sprite = pingSprites[fi2];
+          sprite.position.set(positions[ii*3], positions[ii*3+1], positions[ii*3+2]);
+          var sc = 0.4 + phase*2.6;
+          sprite.scale.set(sc,sc,1);
+          sprite.material.opacity = (1-phase)*0.5*mix.pingMul;
+          sprite.material.color.copy(currentAccent);
+        }
+      }
+
+      if(!reduced){
+        for(var ni=0; ni<N; ni++){
+          if(isFlagged[ni]) continue;
+          var tw = 0.82 + 0.18*Math.sin(t*1.6 + ni*1.37);
+          colorAttr.array[ni*3] = currentDot.r*tw;
+          colorAttr.array[ni*3+1] = currentDot.g*tw;
+          colorAttr.array[ni*3+2] = currentDot.b*tw;
+        }
+        changed = true;
+      }
+      if(changed) colorAttr.needsUpdate = true;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  try{ initBG(); }catch(e){}
+
+})();
+</script>
