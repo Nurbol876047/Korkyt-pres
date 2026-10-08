@@ -111,6 +111,18 @@ button{font-family:inherit;}
 
 .counter{font-size:.78rem;color:var(--paper-dim);letter-spacing:.04em;flex:none;}
 
+.fs-btn{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--line-strong);background:var(--ink-2);
+  color:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  transition:all .18s ease;
+}
+.fs-btn:hover{border-color:var(--accent,var(--admin));color:var(--accent,var(--admin));}
+.fs-btn svg{width:17px;height:17px;}
+.fs-btn .ic-compress{display:none;}
+.fs-btn.is-full .ic-expand{display:none;}
+.fs-btn.is-full .ic-compress{display:block;}
+[data-theme="light"] .fs-btn{background:#FFFFFF;border-color:var(--line);box-shadow:var(--shadow);}
+
 main#stage{
   flex:1;display:flex;align-items:center;justify-content:center;
   padding:18px 28px;min-height:0;position:relative;
@@ -455,6 +467,10 @@ table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
       <div class="lg" data-k="crim"><b style="background:var(--crim)"></b><span class="txt">Қылмыстық</span></div>
     </div>
     <div class="counter mono" id="slideCounter">01 / 30</div>
+    <button class="fs-btn" id="fsBtn" aria-label="Толық экран" title="Толық экран (F)">
+      <svg class="ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      <svg class="ic-compress" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v3a2 2 0 0 1-2 2H4M15 3v3a2 2 0 0 0 2 2h3M9 21v-3a2 2 0 0 0-2-2H4M15 21v-3a2 2 0 0 1 2-2h3"/></svg>
+    </button>
   </div>
 
   <main id="stage">
@@ -465,7 +481,7 @@ table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
     <button class="nav-btn" id="prevBtn" aria-label="Алдыңғы слайд">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
-    <span class="nav-hint">← / → неме Space — слайдтар арасында өту</span>
+    <span class="nav-hint">← / → неме Space — слайдтар арасында өту · F — толық экран</span>
     <button class="nav-btn" id="nextBtn" aria-label="Келесі слайд">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </button>
@@ -623,7 +639,7 @@ table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
   }});
 
   SLIDES.push({chapter:'admin', theme:'light', render:function(){
-    return head('admin','III. Әкімшілік жауапкершілік','ӚҚБтК 34-тарау: әкімшілік сыбайлас жемқорлық құқықбұзушылықтар')+
+    return head('admin','III. Әкімшілік жауапкершілік','ӘҚБтК 34-тарау: әкімшілік сыбайлас жемқорлық құқықбұзушылықтар')+
     '<div class="body-text" style="margin-top:14px">Қылмыстық жаза деңгейіне жетпейтін, бірақ заңсыз материалдық сыйақымен байланысты әрекеттер осы тараумен реттеледі.</div>'+
     codex([['676','Жеке тұлғаның заңсыз сый беруі'],['677','Уәкілетті тұлғаның заңсыз сый алуы'],['678','Заңды тұлғаның заңсыз сый беруі'],['679','Мемлекеттік органның заңсыз кәсіпкерлігі'],['680','Басшының шара қабылдамауы'],['681','Бұрын сыбайлас жемқорлық жасағанды қызметке алу']])+
     '<div class="body-text" style="margin-top:16px">Барлық алты бап бойынша қолданылатын жалғыз шара — <strong>айыппұл салу</strong>.</div>';
@@ -856,6 +872,22 @@ table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
 
   prevBtn.addEventListener('click', prev);
   nextBtn.addEventListener('click', next);
+
+  var fsBtn = document.getElementById('fsBtn');
+  function toggleFullscreen(){
+    try{
+      if(!document.fullscreenElement){
+        var p = document.documentElement.requestFullscreen();
+        if(p && p.catch) p.catch(function(){});
+      } else {
+        document.exitFullscreen();
+      }
+    }catch(e){}
+  }
+  fsBtn.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', function(){
+    fsBtn.classList.toggle('is-full', !!document.fullscreenElement);
+  });
   window.addEventListener('keydown', function(e){
     var openOverlay = document.querySelector('.board-overlay.open');
     if(openOverlay){
@@ -867,6 +899,7 @@ table.cmp td.hl{color:var(--accent,var(--admin));font-weight:800;}
     else if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); prev(); }
     else if(e.key==='Home'){ e.preventDefault(); go(0); }
     else if(e.key==='End'){ e.preventDefault(); go(total-1); }
+    else if(e.key==='f' || e.key==='F'){ e.preventDefault(); toggleFullscreen(); }
   });
 
   var SCORE_KEY = 'corruption-board-scores-v1';
